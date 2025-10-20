@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
+
 
 export default async function UserPage({ params }: { params: { slug: string } }) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/users`);
   const users = await res.json();
   const user = users.find((u: any) => u.username === params.slug);
-  if (!user) return notFound();
+  if (!user) return (<>Not found...</>)
 
   return (
     <div className="max-w-xl mx-auto p-4">

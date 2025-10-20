@@ -24,3 +24,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+:root {
+  --color-blue-strong: #1976D2;
+  --color-aqua-blue: #00BCD4;
+  --color-bg-light: #E3F2FD;
+  --color-text-dark: #212121;
+  --color-green-accent: #43A047;
+  --color-bg-dark: #0d0d0dff; /* new darker background */
+}
+
+body {
+  background-color: var(--color-bg-dark);
+  color: var(--color-bg-light);
+}

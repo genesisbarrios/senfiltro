@@ -1,12 +1,9 @@
 import { notFound } from "next/navigation";
 
-type Props = {
-  params: {
-    slug: string;
-  };
-};
+export default async function UserPage(props: any): Promise<JSX.Element | null> {
+  const params = props?.params ?? {};
+  const slug = String(params?.slug ?? "");
 
-export default async function UserPage({ params }: Props) {
   const base = process.env.NEXT_PUBLIC_BASE_URL;
   if (!base) {
     console.error("NEXT_PUBLIC_BASE_URL is not set");
@@ -26,7 +23,7 @@ export default async function UserPage({ params }: Props) {
       return notFound();
     }
 
-    const user = users.find((u: any) => String(u?.username) === params.slug);
+    const user = users.find((u: any) => String(u?.username) === slug);
     if (!user) return notFound();
 
     return (
@@ -46,4 +43,3 @@ export default async function UserPage({ params }: Props) {
     console.error("UserPage error:", err);
     return notFound();
   }
-}

@@ -14,11 +14,14 @@
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",
     "@solana/wallet-adapter-wallets": "^0.19.37",
+    "daisyui": "^5.3.8",
     "mongoose": "^8.19.1",
     "next": "15.5.4",
+    "next-auth": "^4.24.11",
     "pinata-web3": "^0.5.4",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

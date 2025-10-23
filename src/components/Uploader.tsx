@@ -1,17 +1,17 @@
 "use client";
-
+import apiClient from "@/libs/api";
+import React  from "react";
 import { useState } from "react";
-
-
+import { useSession } from "next-auth/react";
 
 export default function MediaUploader({ onApproved }: { onApproved: (url: string, aiTag: boolean, type: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string>('');
-
+  const { data: session } = useSession();
 
 const uploadToPinata = async (file:any) => {
-    try {
+try {   
       setUploadProgress('Validating files...');
 
       // Check file size (limit to 50MB for audio)

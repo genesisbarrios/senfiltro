@@ -4,20 +4,20 @@ import toJSON from "./plugins/toJSON";
 // USER SCHEMA
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    walletAddress:{
       type: String,
-      trim: true,
+      default: null
     },
     username: {
       type: String,
       lowercase:true
     },
+    name: {
+      type: String,
+      trim: true,
+    },
     image: {
       type: String,
-    },
-    walletAddress:{
-      type: String,
-      default: null
     },
     socials: {
       type: [String],

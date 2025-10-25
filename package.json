@@ -20,7 +20,7 @@
     "next-auth": "^4.24.11",
     "pinata-web3": "^0.5.4",
     "react": "^19.2.0",
-    "react-dom": "19.1.0",
+    "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {

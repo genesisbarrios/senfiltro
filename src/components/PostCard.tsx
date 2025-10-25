@@ -6,7 +6,7 @@ interface Post {
   createdAt: string
 }
 
-export default function PostCard({ post }: { post: Tweet }) {
+export default function PostCard({ post }: { post: Post }) {
   return (
     <div className="border-b border-gray-800 p-4">
       <p className="text-sm text-gray-400">{post.author}</p>

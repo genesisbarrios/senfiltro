@@ -27,6 +27,7 @@ export default function ProfilePage() {
   // EDIT STATE (info section only, no image editing here)
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
@@ -113,24 +114,48 @@ export default function ProfilePage() {
     setEditing(false);
 
     // merge socials: ensure instagram/tiktok/youtube updated from individual inputs
-    const mergedSocials = socials.slice();
+    const mergedSocials = JSON.stringify(socials.slice());
     // ensure specific socials are set from dedicated fields
     const inst = getSocial("instagram");
     // they may have been edited through setSocial; but ensure current dedicated values override:
     // Note: setSocial already updates socials when used; here we just send current socials
     try {
-      const payload: Partial<UserModel> = {
+      const payload = {
+        walletAddress: walletAddr ?? undefined,
         name,
         username,
+        email,
         bio,
         website,
         socials: mergedSocials,
       };
-      const res = await fetch("/api/users", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      // try to use api client if available, fall back to fetch
+      let res: any;
+      const apiModule = await import("../../libs/api").catch(() => null);
+      const client = apiModule ? apiModule.default : null;
+
+      if (client) {
+        // client.request likely returns an axios-like response { status, data, ... }
+        const r = await client.request({ url: "/user", method: "POST", data: payload });
+        res = {
+          ok: r?.status >= 200 && r?.status < 300,
+          status: r?.status,
+          data: r?.data,
+          text: async () => {
+        try {
+          return JSON.stringify(r?.data);
+        } catch {
+          return String(r);
+        }
+          },
+        };
+      } else {
+        res = await fetch("/api/user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
       if (!res.ok) {
         console.error("Failed to save user", await res.text().catch(() => "save error"));
       } else {
@@ -276,23 +301,28 @@ export default function ProfilePage() {
                 <input value={website} onChange={(e) => setWebsite(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
               </div>
 
+                <div>
+                <label className="block text-xs text-gray-400 mb-1">E-Mail</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
+
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Socials (Instagram / TikTok / YouTube shown)</label>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <div className="text-pink-400"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5z"/></svg></div>
-                    <input value={getSocial("instagram")} onChange={(e) => setSocial("instagram", e.target.value)} placeholder="Instagram URL / handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+                    <input value={getSocial("instagram")} onChange={(e) => setSocial("instagram", e.target.value)} placeholder="Instagram handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="text-white"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg></div>
-                    <input value={getSocial("tiktok")} onChange={(e) => setSocial("tiktok", e.target.value)} placeholder="TikTok URL / handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+                    <input value={getSocial("tiktok")} onChange={(e) => setSocial("tiktok", e.target.value)} placeholder="TikTok @handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="text-red-500"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M10 15l5.2-3L10 9v6z"/></svg></div>
-                    <input value={getSocial("youtube")} onChange={(e) => setSocial("youtube", e.target.value)} placeholder="YouTube URL / channel" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+                    <input value={getSocial("youtube")} onChange={(e) => setSocial("youtube", e.target.value)} placeholder="YouTube @channel" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
                   </div>
                 </div>
 

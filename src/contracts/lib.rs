@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("Senf1ltro1111111111111111111111111111111111"); // replace with your program id
+declare_id!("9TC59EBnNgvCfLzA9U1znL3JnqvAKFHHJtkiUypfn5HP"); // replace with your program id
 
 #[program]
 pub mod senfiltro {

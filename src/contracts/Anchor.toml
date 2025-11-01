@@ -1,0 +1,11 @@
+cat > Anchor.toml <<'EOF'
+[programs.devnet]
+senfiltro = "9TC59EBnNgvCfLzA9U1znL3JnqvAKFHHJtkiUypfn5HP"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "echo no tests"
+EOF

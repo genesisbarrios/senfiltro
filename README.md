@@ -1,6 +1,6 @@
 
 ## README
-Senfiltro - Speak Freely. Live Unfiltered.
+Senfiltro, the uncensored decentralized social media platform for the AI era. Speak Freely. Live Unfiltered.
 
 ## Developers
 

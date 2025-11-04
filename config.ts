@@ -23,6 +23,10 @@ const config = {
     // OR you can just do this to use a custom color: main: "#f37055". HEX only.
     main: "dark"
   },
+   auth: {
+    // use absolute URL your app expects after sign in, change to your deployed domain in prod
+    callbackUrl: "http://localhost:3000/dashboard"
+  }
 } as ConfigProps;
 
 export default config;

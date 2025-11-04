@@ -11,7 +11,7 @@ interface NextAuthOptionsExtended extends NextAuthOptions {
 
 export const authOptions: NextAuthOptionsExtended  = {
   // Set any random key in .env.local
-  secret: process.env.NEXTAUTH_SECRET || (() => { throw new Error("NEXTAUTH_SECRET is not defined in environment variables"); })(),
+  secret: process.env.NEXTAUTH_SECRET ?? undefined,
    providers: [
   //   GoogleProvider({
   //     // Follow the "Login with Google" tutorial to get your credentials

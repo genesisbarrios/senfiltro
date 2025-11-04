@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
 import { useWallet } from "@solana/wallet-adapter-react";
+import bs58 from "bs58";
 
 type UserModel = {
   name?: string;
@@ -23,8 +24,6 @@ export default function ProfilePage() {
   const { publicKey } = useWallet();
 
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
-
-  // EDIT STATE (info section only, no image editing here)
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -109,64 +108,87 @@ export default function ProfilePage() {
     setSocials((s) => s.filter((_, i) => i !== idx));
   }
 
+    async function signAndSaveProfile(payload: Record<string, any>) {
+    setLoading(true);
+    try {
+      const provider = (window as any).solana;
+      if (!provider?.isPhantom) throw new Error("Phantom not available");
+      await provider.connect();
+      const message = JSON.stringify(payload);
+      const encoded = new TextEncoder().encode(message);
+      const signed = await provider.signMessage(encoded, "utf8");
+      const sigBytes = (signed as any).signature ?? signed;
+      const signature = bs58.encode(sigBytes);
+      const pubkey = provider.publicKey.toString();
+
+      const res = await fetch("/api/user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-solana-pubkey": pubkey,
+          "x-solana-signature": signature,
+        },
+        body: JSON.stringify({ signedMessage: message, ...payload }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || JSON.stringify(data) || "save failed");
+      }
+      console.log("saved", data);
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function onSave(e?: React.FormEvent) {
     e?.preventDefault();
     setEditing(false);
 
-    // merge socials: ensure instagram/tiktok/youtube updated from individual inputs
+    // merge socials into a string (server accepts JSON/string)
     const mergedSocials = JSON.stringify(socials.slice());
-    // ensure specific socials are set from dedicated fields
-    const inst = getSocial("instagram");
-    // they may have been edited through setSocial; but ensure current dedicated values override:
-    // Note: setSocial already updates socials when used; here we just send current socials
-    try {
-      const payload = {
-        walletAddress: walletAddr ?? undefined,
-        name,
-        username,
-        email,
-        bio,
-        website,
-        socials: mergedSocials,
-      };
-      // try to use api client if available, fall back to fetch
-      let res: any;
-      const apiModule = await import("../../libs/api").catch(() => null);
-      const client = apiModule ? apiModule.default : null;
 
-      if (client) {
-        // client.request likely returns an axios-like response { status, data, ... }
-        const r = await client.request({ url: "/user", method: "POST", data: payload });
-        res = {
-          ok: r?.status >= 200 && r?.status < 300,
-          status: r?.status,
-          data: r?.data,
-          text: async () => {
-        try {
-          return JSON.stringify(r?.data);
-        } catch {
-          return String(r);
-        }
-          },
-        };
-      } else {
-        res = await fetch("/api/user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-      if (!res.ok) {
-        console.error("Failed to save user", await res.text().catch(() => "save error"));
-      } else {
-        // optimistic update
-        setUser((u) => ({ ...(u ?? {}), ...payload }));
-      }
+    const payload = {
+      walletAddress: walletAddr ?? undefined,
+      name,
+      username,
+      email,
+      bio,
+      website,
+      socials: mergedSocials,
+    };
+
+    try {
+      // Use wallet-sign flow to authenticate and save
+      const result = await signAndSaveProfile(payload);
+
+      // optimistic UI update on success
+      setUser((u) => ({ ...(u ?? {}), ...payload }));
+      console.log("profile saved result:", result);
     } catch (err) {
-      console.error("Failed to save user:", err);
+      console.error("Failed to save user (wallet-sign) :", err);
+      // fallback: try unauthenticated dev-save (optional)
+      if (process.env.NODE_ENV !== "production") {
+        try {
+          const res = await fetch("/api/user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const text = await res.text().catch(() => "");
+          if (!res.ok) {
+            console.error("Dev fallback save failed:", text);
+          } else {
+            setUser((u) => ({ ...(u ?? {}), ...payload }));
+          }
+        } catch (fallbackErr) {
+          console.error("Dev fallback save error:", fallbackErr);
+        }
+      }
     }
   }
-
+  
   return (
     <div className="min-h-screen bg-[#0b0b0b] text-white">
       <Header />

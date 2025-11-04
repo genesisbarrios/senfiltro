@@ -3,7 +3,6 @@ import { toast } from "react-hot-toast";
 import { signIn } from "next-auth/react";
 import config from "../../config";
 
-// use this to interact with our own API (/app/api folder) from the front-end side
 const apiClient = axios.create({
   baseURL: "/api",
 });
@@ -16,16 +15,35 @@ apiClient.interceptors.response.use(
     let message = "";
 
     if (error.response?.status === 401) {
-      // User not auth, ask to re login
-      toast.error("Please login");
-      // automatically redirect to /dashboard page after login
-      return signIn(undefined, { callbackUrl: config.auth.callbackUrl });
+      // Don't force NextAuth signIn for web3 apps.
+      toast.error("Please connect your wallet");
+
+      // If you explicitly enabled NextAuth in config, call signIn.
+      if ((config as any)?.auth?.useNextAuth) {
+        try {
+          return signIn(undefined, {
+            callbackUrl: config.auth?.callbackUrl ?? "/",
+          });
+        } catch (e) {
+          console.warn("signIn failed", e);
+        }
+      }
+
+      // Default web3 flow: redirect to a client wallet-connect page
+      if (typeof window !== "undefined") {
+        const callback = config?.auth?.callbackUrl ?? "/";
+        window.location.href = `/connect-wallet?callback=${encodeURIComponent(
+          callback
+        )}`;
+      }
+
+      // Reject so callers see the original error
+      return Promise.reject(error);
     } else if (error.response?.status === 403) {
-      // User not authorized, must subscribe/purchase/pick a plan
       message = "Pick a plan to use this feature";
     } else {
       message =
-        error?.response?.data?.error || error.message || error.toString();
+        error?.response?.data?.error || error.message || String(error);
     }
 
     error.message =
@@ -33,7 +51,6 @@ apiClient.interceptors.response.use(
 
     console.error(error.message);
 
-    // Automatically display errors to the user
     if (error.message) {
       toast.error(error.message);
     } else {

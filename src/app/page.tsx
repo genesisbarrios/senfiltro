@@ -56,7 +56,7 @@ export default function HomePage() {
       <div>
          <button
           onClick={() => setCreateOpen(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1976D2] text-white rounded mb-4 hover:bg-[#00BCD4] transition"
+          className="w-3/4 mx-auto flex items-center justify-center gap-2 px-4 py-3 bg-[#1976D2] text-white rounded mb-4 hover:bg-[#00BCD4] transition"
           aria-label="Create Post"
           type="button"
         >

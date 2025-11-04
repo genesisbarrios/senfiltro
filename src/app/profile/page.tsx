@@ -33,43 +33,36 @@ export default function ProfilePage() {
   const [socials, setSocials] = useState<string[]>([]);
   const [newSocial, setNewSocial] = useState("");
 
+  // getPublicKey should return the wallet string if you have it in client state
+  async function getPublicKey(): Promise<string | null> {
+    const provider = (window as any).solana;
+    return provider?.publicKey?.toString?.() ?? null;
+  }
+
   useEffect(() => {
     let mounted = true;
-
     (async () => {
+      setLoading(true);
       try {
-        const apiClient = await import("../../libs/api").catch(() => null);
-        const client = apiClient ? apiClient.default : null;
-
-        let result: any = null;
-        if (client) {
-          result = await client.request({ url: "/users", method: "GET" });
-        } else {
-          const res = await fetch("/api/users", { cache: "no-store" });
-          result = await res.json().catch(() => null);
-        }
-
-        const users = Array.isArray(result) ? result : result?.data ?? result;
+        const wallet = await getPublicKey();
+        const url = wallet ? `/api/get-user?wallet=${encodeURIComponent(wallet)}` : "/api/get-user";
+        const res = await fetch(url, { cache: "no-store" });
+        const json = await res.json().catch(() => null);
         if (!mounted) return;
-        const u = users?.[0] ?? null;
-        setUser(u);
-
-        // seed edit form
-        setName(u?.name ?? "");
-        setUsername(u?.username ?? "");
-        setBio(u?.bio ?? "");
-        setWebsite(u?.website ?? "");
-        setSocials(Array.isArray(u?.socials) ? u.socials : []);
+        if (!res.ok) {
+          console.error("GET /api/get-user failed", json);
+          setUser(null);
+        } else {
+          setUser(json?.data ?? null);
+        }
       } catch (err) {
         console.error("Failed to load user via api client", err);
+        setUser(null);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const walletAddr = publicKey?.toBase58() ?? user?.walletAddress ?? null;

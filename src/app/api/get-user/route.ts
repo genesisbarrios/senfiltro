@@ -1,49 +1,31 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import type { NextApiRequest, NextApiResponse } from "next";
-import User from "@/models/User";
-import { getServerSession } from "next-auth/next";
+import { NextRequest, NextResponse } from "next/server";
 import connectMongo from "@/libs/mongoose";
-import { authOptions } from "@/libs/next-auth";
-import { NextResponse } from "next/server";
-import { NextRequest } from 'next/server';
-import { useSession, signOut } from "next-auth/react";
+import User from "@/models/User";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
- 
-  if (session) {
+  try {
     await connectMongo();
-    console.log('session user id');
-    console.log(session.user.id);
-    const id = session.user.id;
-
-    try {
-      const user = await User.findOne({_id: id});
-      console.log(user);
-
-      if (!user) {
-        return NextResponse.json(
-          { error: "User Not Found" },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json(
-        { data: user},
-        { status: 200 }
-      );
-
-    } catch (e) {
-      console.error(e);
-      return NextResponse.json(
-        { error: "Something went wrong" },
-        { status: 500 }
-      );
-    }
-  } else {
-    // Not Signed in
-    return NextResponse.json(
-      { error: "Please Sign In." },
-      { status: 401 }
-    );
+  } catch (err) {
+    console.error("DB connect error (GET /api/get-user):", err);
+    return NextResponse.json({ error: "Database connection error" }, { status: 500 });
   }
+
+  const url = new URL(req.url);
+  const wallet = url.searchParams.get("wallet");
+
+  // Public read by wallet (no auth required)
+  if (wallet) {
+    try {
+      const user = await User.findOne({ walletAddress: wallet }).lean();
+      if (!user) return NextResponse.json({ data: null }, { status: 200 });
+      return NextResponse.json({ data: user }, { status: 200 });
+    } catch (err) {
+      console.error("GET by wallet error:", err);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+  }
+
+  // No wallet specified — do not attempt NextAuth session (avoids JWE/JWT decryption)
+  // Return null so client can handle anonymous view or prompt to connect wallet.
+  return NextResponse.json({ data: null }, { status: 200 });
 }

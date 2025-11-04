@@ -5,6 +5,9 @@ import Header from "@/components/Header";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import { set } from "mongoose";
+import { faPatreon, faDiscord, faSoundcloud, faBluesky, faBandcamp } from "@fortawesome/free-brands-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 
 type UserModel = {
   name?: string;
@@ -36,6 +39,11 @@ export default function ProfilePage() {
   const [instagramHandle, setInstagramHandle] = useState("");
   const [tiktokHandle, setTiktokHandle] = useState("");
   const [youtubeHandle, setYoutubeHandle] = useState("");
+  const [blueskyHandle, setBlueskyHandle] = useState("");
+  const [soundcloudHandle, setSoundcloudHandle] = useState("");
+  const [bandcampHandle, setBandcampHandle] = useState("");
+  const [discordHandle, setDiscordHandle] = useState("");
+  const [patreonHandle, setPatreonHandle] = useState("");
 
   // getPublicKey should return the wallet string if you have it in client state
   async function getPublicKey(): Promise<string | null> {
@@ -69,6 +77,11 @@ export default function ProfilePage() {
           setInstagramHandle(sArr.find((s: string) => s.toLowerCase().includes("instagram")) ?? "");
           setTiktokHandle(sArr.find((s: string) => s.toLowerCase().includes("tiktok")) ?? "");
           setYoutubeHandle(sArr.find((s: string) => s.toLowerCase().includes("youtube")) ?? "");
+          setBlueskyHandle(sArr.find((s: string) => s.toLowerCase().includes("bluesky")) ?? "");
+          setSoundcloudHandle(sArr.find((s: string) => s.toLowerCase().includes("soundcloud")) ?? "");
+          setDiscordHandle(sArr.find((s: string) => s.toLowerCase().includes("discord")) ?? "");
+          setPatreonHandle(sArr.find((s: string) => s.toLowerCase().includes("patreon")) ?? "");
+          setBandcampHandle(sArr.find((s: string) => s.toLowerCase().includes("bandcamp")) ?? "");
         }
       } catch (err) {
         console.error("Failed to load user via api client", err);
@@ -168,6 +181,11 @@ export default function ProfilePage() {
       ...(instagramHandle.trim() ? [instagramHandle.trim()] : []),
       ...(tiktokHandle.trim() ? [tiktokHandle.trim()] : []),
       ...(youtubeHandle.trim() ? [youtubeHandle.trim()] : []),
+      ...(blueskyHandle.trim() ? [blueskyHandle.trim()] : []),
+      ...(soundcloudHandle.trim() ? [soundcloudHandle.trim()] : []),
+      ...(discordHandle.trim() ? [discordHandle.trim()] : []),
+      ...(patreonHandle.trim() ? [patreonHandle.trim()] : []),
+      ...(bandcampHandle.trim() ? [bandcampHandle.trim()] : []),
     ];
 
     // send socials as JSON string (server expects string/array)
@@ -302,7 +320,7 @@ export default function ProfilePage() {
                       {(((user?.socials[0] as any))) && (
                         <a
                           className="text-pink-400"
-                          href={(user?.socials as any)?.instagramHandle ?? socials.find((s) => s.toLowerCase().includes("instagram")) ?? "#"}
+                          href={("https://instagram.com/" + user?.socials as any)?.instagramHandle ?? socials.find((s) => s.toLowerCase().includes("instagram")) ?? "#"}
                           aria-label="instagram"
                         >
                           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5zm6.8-2.3a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
@@ -312,7 +330,7 @@ export default function ProfilePage() {
                       {(((user?.socials[1] as any))) && (
                         <a
                           className="text-white"
-                          href={(user?.socials as any)?.tiktokHandle ?? socials.find((s) => s.toLowerCase().includes("tiktok")) ?? "#"}
+                          href={("https://tiktok.com/" + user?.socials as any)?.tiktokHandle ?? socials.find((s) => s.toLowerCase().includes("tiktok")) ?? "#"}
                           aria-label="tiktok"
                         >
                           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
@@ -322,13 +340,64 @@ export default function ProfilePage() {
                       {(((user?.socials[2] as any))) && (
                         <a
                           className="text-red-500"
-                          href={(user?.socials as any)?.youtubeHandle ?? socials.find((s) => s.toLowerCase().includes("youtube")) ?? "#"}
+                          href={("https://youtube.com/" + user?.socials as any)?.youtubeHandle ?? socials.find((s) => s.toLowerCase().includes("youtube")) ?? "#"}
                           aria-label="youtube"
                         >
                           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M10 15l5.2-3L10 9v6zM21.8 8s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C15.7 4.3 12 4.3 12 4.3h-.1s-3.7 0-6.9.4c-.4 0-1.4.1-2.1 1C2.4 6.4 2.2 8 2.2 8S2 9.9 2 11.8v.4C2 14.1 2.2 16 2.2 16s.2 1.6.8 2.3c.8.9 1.9.9 2.4 1 1.7.2 6.9.4 6.9.4s3.7 0 6.9-.4c.4 0 1.4-.1 2.1-1 .6-.7.8-2.3.8-2.3s.2-1.9.2-3.8v-.4c0-1.9-.2-3.8-.2-3.8z"/></svg>
                         </a>
                       )}
+                       {(((user?.socials[3] as any))) && (
+                        <a
+                          className="text-red-500"
+                          href={(user?.socials as any)?.bluesky ?? socials.find((s) => s.toLowerCase().includes("bluesky")) ?? "#"}
+                          aria-label="bluesky"
+                        >
+                          <FontAwesomeIcon icon={faBluesky} className="h-6 w-6"/>
+                        </a>
+                      )}
+                      {(((user?.socials[4] as any))) && (
+                        <a
+                          className="text-indigo-500"
+                          href={(user?.socials as any)?.discordHandle ?? socials.find((s) => s.toLowerCase().includes("discord")) ?? "#"}
+                          aria-label="discord"
+                        >
+                          <FontAwesomeIcon icon={faDiscord} className="h-6 w-6"/>
+                        </a>
+                      )}
+                      {(((user?.socials[5] as any))) && (
+                        <a
+                          className="text-orange-400"
+                          href= {("https://patreon.com/c/" +  user?.socials as any)?.patreonHandle ?? socials.find((s) => s.toLowerCase().includes("patreon")) ?? "#"}
+                          aria-label="patreon"
+                        >
+                          <FontAwesomeIcon icon={faPatreon} className="h-6 w-6"/>
+                        </a>
+                      )}    
+                       {(((user?.socials[6] as any))) && (
+                        <a
+                          className="text-orange-500"
+                          href={("https://soundcloud.com/" + user?.socials as any)?.soundcloudHandle ?? socials.find((s) => s.toLowerCase().includes("soundcloud")) ?? "#"}
+                          aria-label="soundcloud"
+                        >
+                         <FontAwesomeIcon icon={faSoundcloud} className="h-6 w-6"/>
+                        </a>
+                      )}  
+                       {(((user?.socials[7] as any))) && (
+                        <a
+                          className="text-red-500"
+                          href={
+                            ((user?.socials as any)?.bandcampHandle)
+                              ? `https://${(user?.socials as any).bandcampHandle}.bandcamp.com`
+                              : (socials.find((s) => s.toLowerCase().includes("bandcamp")) ?? "#")
+                          }
+                          aria-label="bandcamp"
+                        >
+                          <FontAwesomeIcon icon={faBandcamp} className="h-6 w-6"/>
+                        </a>
+                      )}
+
                     </div>
+
                   )}
               </div>
             </div>
@@ -362,25 +431,63 @@ export default function ProfilePage() {
 
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Socials (Instagram / TikTok / YouTube shown)</label>
-             <div className="flex items-center gap-2">
+             
+             <div className="flex items-center gap-2 mt-4">
                <div className="text-pink-400">
                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5z"/></svg>
                </div>
-               <input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="Instagram handle or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+               <input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="Instagram handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
              </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-4">
                 <div className="text-white">
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
                 </div>
-                <input value={tiktokHandle} onChange={(e) => setTiktokHandle(e.target.value)} placeholder="TikTok @handle or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+                <input value={tiktokHandle} onChange={(e) => setTiktokHandle(e.target.value)} placeholder="TikTok @handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-4">
                 <div className="text-red-500">
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M10 15l5.2-3L10 9v6z"/></svg>
                 </div>
-                <input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="YouTube channel or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+                <input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="YouTube handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
+             
+              <div className="flex items-center gap-2 mt-4">
+                <div className="text-red-500">
+                  <FontAwesomeIcon icon={faBluesky} color="LightSkyBlue" className="h-5 w-5" />  
+                </div>
+                <input value={blueskyHandle} onChange={(e) => setBlueskyHandle(e.target.value)} placeholder="Bluesky handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
+
+              </div>
+                <div className="flex items-center gap-2">
+                <div className="text-red-500">
+                   <FontAwesomeIcon icon={faDiscord} color="purple" className="h-5 w-5" />
+                </div>
+                <input value={discordHandle} onChange={(e) => setDiscordHandle(e.target.value)} placeholder="Discord URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>      
+
+              <div className="flex items-center gap-2">
+                <div className="text-red-500">
+                  <FontAwesomeIcon icon={faPatreon} color="white" className="h-5 w-5" />
+                </div>
+                <input value={patreonHandle} onChange={(e) => setPatreonHandle(e.target.value)} placeholder="Patreon profile" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
+              <div>
+
+              <div className="flex items-center gap-2 mt-4">
+                <div className="text-red-500">  
+                  <FontAwesomeIcon icon={faSoundcloud} color="orange" className="h-5 w-5" />
+                </div>
+                <input value={soundcloudHandle} onChange={(e) => setSoundcloudHandle(e.target.value)} placeholder="SoundCloud profile" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
+
+              <div className="flex items-center gap-2 mt-4">
+                <div className="text-red-500">
+                  <FontAwesomeIcon icon={faBandcamp} color="white" className="h-5 w-5" />
+                </div>
+                <input value={bandcampHandle} onChange={(e) => setBandcampHandle(e.target.value)} placeholder="Bandcamp profile" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
               </div>
 
                 {/* <div className="mt-3 flex gap-2">

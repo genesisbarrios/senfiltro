@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Header from "@/components/Header";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
+import { set } from "mongoose";
 
 type UserModel = {
   name?: string;
@@ -32,6 +33,9 @@ export default function ProfilePage() {
   const [website, setWebsite] = useState("");
   const [socials, setSocials] = useState<string[]>([]);
   const [newSocial, setNewSocial] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [tiktokHandle, setTiktokHandle] = useState("");
+  const [youtubeHandle, setYoutubeHandle] = useState("");
 
   // getPublicKey should return the wallet string if you have it in client state
   async function getPublicKey(): Promise<string | null> {
@@ -53,7 +57,18 @@ export default function ProfilePage() {
           console.error("GET /api/get-user failed", json);
           setUser(null);
         } else {
+          console.log(json?.data);
           setUser(json?.data ?? null);
+          setName(json?.data?.name ?? "");
+          setUsername(json?.data?.username ?? "");
+          setEmail(json?.data?.email ?? "");
+          setBio(json?.data?.bio ?? "");
+          setWebsite(json?.data?.website ?? "");
+          const sArr = Array.isArray(json?.data?.socials) ? json.data.socials : [];
+          setSocials(sArr);
+          setInstagramHandle(sArr.find((s: string) => s.toLowerCase().includes("instagram")) ?? "");
+          setTiktokHandle(sArr.find((s: string) => s.toLowerCase().includes("tiktok")) ?? "");
+          setYoutubeHandle(sArr.find((s: string) => s.toLowerCase().includes("youtube")) ?? "");
         }
       } catch (err) {
         console.error("Failed to load user via api client", err);
@@ -139,8 +154,24 @@ export default function ProfilePage() {
     e?.preventDefault();
     setEditing(false);
 
-    // merge socials into a string (server accepts JSON/string)
-    const mergedSocials = JSON.stringify(socials.slice());
+    // build merged socials array from individual handles + extra list
+    const otherSocials = socials.filter((s) =>
+      !(
+        s.toLowerCase().includes("instagram") ||
+        s.toLowerCase().includes("tiktok") ||
+        s.toLowerCase().includes("youtube")
+      )
+    );
+
+    const mergedSocialsArr = [
+      ...otherSocials,
+      ...(instagramHandle.trim() ? [instagramHandle.trim()] : []),
+      ...(tiktokHandle.trim() ? [tiktokHandle.trim()] : []),
+      ...(youtubeHandle.trim() ? [youtubeHandle.trim()] : []),
+    ];
+
+    // send socials as JSON string (server expects string/array)
+    const mergedSocials = JSON.stringify(mergedSocialsArr);
 
     const payload = {
       walletAddress: walletAddr ?? undefined,
@@ -157,28 +188,12 @@ export default function ProfilePage() {
       const result = await signAndSaveProfile(payload);
 
       // optimistic UI update on success
-      setUser((u) => ({ ...(u ?? {}), ...payload }));
+      setUser((u) => ({ ...(u ?? {}), ...payload, socials: mergedSocialsArr }));
+      // keep local socials state in sync
+      setSocials(mergedSocialsArr);
       console.log("profile saved result:", result);
     } catch (err) {
       console.error("Failed to save user (wallet-sign) :", err);
-      // fallback: try unauthenticated dev-save (optional)
-      if (process.env.NODE_ENV !== "production") {
-        try {
-          const res = await fetch("/api/user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const text = await res.text().catch(() => "");
-          if (!res.ok) {
-            console.error("Dev fallback save failed:", text);
-          } else {
-            setUser((u) => ({ ...(u ?? {}), ...payload }));
-          }
-        } catch (fallbackErr) {
-          console.error("Dev fallback save error:", fallbackErr);
-        }
-      }
     }
   }
   
@@ -271,7 +286,10 @@ export default function ProfilePage() {
                 <div className="mt-3 flex gap-3 flex-wrap justify-center">
                   {user?.website && (
                     <a href={user.website} target="_blank" rel="noreferrer" className="text-sm text-[#61dafb] hover:underline">
-                      Website
+                       <span className="text-gray-300">
+                         {/* globe icon */}
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 9h-2.5a15.9 15.9 0 00-1.1-4.1A8.1 8.1 0 0118.9 11zM12 4c.9 1.6 1.6 3.6 1.9 6H10.1C10.4 7.6 11.1 5.6 12 4zM4.1 11a8.1 8.1 0 012.6-3.1c.4 1.4.6 3 .6 4H4.1zm0 2h2.5c.3 2.4 1 4.4 1.9 6-1-.9-2.2-2.4-3.5-4.1A8.1 8.1 0 004.1 13zM12 20c-.9-1.6-1.6-3.6-1.9-6h3.8c-.3 2.4-1 4.4-1.9 6zm3.3-1.1c1.3 1.7 2.5 3.2 3.5 4.1-.6-.9-1.3-2.1-1.8-3.5-.5-1.1-.9-2.2-1.7-2.6z" /></svg>
+                       </span>
                     </a>
                   )}
                   {user?.location && <div className="text-sm text-gray-400">{user.location}</div>}
@@ -279,18 +297,39 @@ export default function ProfilePage() {
                 </div>
 
                 {/* socials icons: instagram, tiktok, youtube displayed */}
-                  {user?.socials && 
-                  <div className="mt-4 flex items-center gap-4">
-                  <a className="text-pink-400" href={socials.find((s) => s.toLowerCase().includes("instagram")) ?? "#"} aria-label="instagram">
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5zm6.8-2.3a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
-                  </a>
-                  <a className="text-white" href={socials.find((s) => s.toLowerCase().includes("tiktok")) ?? "#"} aria-label="tiktok">
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
-                  </a>
-                  <a className="text-red-500" href={socials.find((s) => s.toLowerCase().includes("youtube")) ?? "#"} aria-label="youtube">
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M10 15l5.2-3L10 9v6zM21.8 8s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C15.7 4.3 12 4.3 12 4.3h-.1s-3.7 0-6.9.4c-.4 0-1.4.1-2.1 1C2.4 6.4 2.2 8 2.2 8S2 9.9 2 11.8v.4C2 14.1 2.2 16 2.2 16s.2 1.6.8 2.3c.8.9 1.9.9 2.4 1 1.7.2 6.9.4 6.9.4s3.7 0 6.9-.4c.4 0 1.4-.1 2.1-1 .6-.7.8-2.3.8-2.3s.2-1.9.2-3.8v-.4c0-1.9-.2-3.8-.2-3.8z"/></svg>
-                  </a>
-                </div>}
+                  {user?.socials && (((Array.isArray(user.socials) && user.socials.length > 0) || typeof user.socials === "object")) && (
+                    <div className="mt-4 flex items-center gap-4">
+                      {(((user?.socials[0] as any))) && (
+                        <a
+                          className="text-pink-400"
+                          href={(user?.socials as any)?.instagramHandle ?? socials.find((s) => s.toLowerCase().includes("instagram")) ?? "#"}
+                          aria-label="instagram"
+                        >
+                          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5zm6.8-2.3a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
+                        </a>
+                      )}
+
+                      {(((user?.socials[1] as any))) && (
+                        <a
+                          className="text-white"
+                          href={(user?.socials as any)?.tiktokHandle ?? socials.find((s) => s.toLowerCase().includes("tiktok")) ?? "#"}
+                          aria-label="tiktok"
+                        >
+                          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
+                        </a>
+                      )}
+
+                      {(((user?.socials[2] as any))) && (
+                        <a
+                          className="text-red-500"
+                          href={(user?.socials as any)?.youtubeHandle ?? socials.find((s) => s.toLowerCase().includes("youtube")) ?? "#"}
+                          aria-label="youtube"
+                        >
+                          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M10 15l5.2-3L10 9v6zM21.8 8s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C15.7 4.3 12 4.3 12 4.3h-.1s-3.7 0-6.9.4c-.4 0-1.4.1-2.1 1C2.4 6.4 2.2 8 2.2 8S2 9.9 2 11.8v.4C2 14.1 2.2 16 2.2 16s.2 1.6.8 2.3c.8.9 1.9.9 2.4 1 1.7.2 6.9.4 6.9.4s3.7 0 6.9-.4c.4 0 1.4-.1 2.1-1 .6-.7.8-2.3.8-2.3s.2-1.9.2-3.8v-.4c0-1.9-.2-3.8-.2-3.8z"/></svg>
+                        </a>
+                      )}
+                    </div>
+                  )}
               </div>
             </div>
           ) : (
@@ -323,25 +362,28 @@ export default function ProfilePage() {
 
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Socials (Instagram / TikTok / YouTube shown)</label>
+             <div className="flex items-center gap-2">
+               <div className="text-pink-400">
+                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5z"/></svg>
+               </div>
+               <input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="Instagram handle or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+             </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="text-pink-400"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5z"/></svg></div>
-                    <input value={getSocial("instagram")} onChange={(e) => setSocial("instagram", e.target.value)} placeholder="Instagram handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="text-white"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg></div>
-                    <input value={getSocial("tiktok")} onChange={(e) => setSocial("tiktok", e.target.value)} placeholder="TikTok @handle" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="text-red-500"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M10 15l5.2-3L10 9v6z"/></svg></div>
-                    <input value={getSocial("youtube")} onChange={(e) => setSocial("youtube", e.target.value)} placeholder="YouTube @channel" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
-                  </div>
+              <div className="flex items-center gap-2">
+                <div className="text-white">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
                 </div>
+                <input value={tiktokHandle} onChange={(e) => setTiktokHandle(e.target.value)} placeholder="TikTok @handle or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
 
-                <div className="mt-3 flex gap-2">
+              <div className="flex items-center gap-2">
+                <div className="text-red-500">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M10 15l5.2-3L10 9v6z"/></svg>
+                </div>
+                <input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="YouTube channel or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+              </div>
+
+                {/* <div className="mt-3 flex gap-2">
                   <input value={newSocial} onChange={(e) => setNewSocial(e.target.value)} placeholder="Add another social (https://...)" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
                   <button type="button" onClick={addSocialUrl} className="px-3 py-2 bg-[#1976D2] rounded text-white">Add</button>
                 </div>
@@ -353,7 +395,7 @@ export default function ProfilePage() {
                       <button type="button" onClick={() => removeSocial(i)} className="text-xs text-red-400">Remove</button>
                     </div>
                   ))}
-                </div>
+                </div> */}
               </div>
 
               <div className="flex gap-2 justify-end">

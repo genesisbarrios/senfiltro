@@ -320,7 +320,7 @@ export default function ProfilePage() {
                       {(((user?.socials[0] as any))) && (
                         <a
                           className="text-pink-400"
-                          href={("https://instagram.com/" + user?.socials as any)?.instagramHandle ?? socials.find((s) => s.toLowerCase().includes("instagram")) ?? "#"}
+                          href={("https://instagram.com/" + user?.socials[0] as any)}
                           aria-label="instagram"
                         >
                           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5zm6.8-2.3a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
@@ -330,7 +330,7 @@ export default function ProfilePage() {
                       {(((user?.socials[1] as any))) && (
                         <a
                           className="text-white"
-                          href={("https://tiktok.com/" + user?.socials as any)?.tiktokHandle ?? socials.find((s) => s.toLowerCase().includes("tiktok")) ?? "#"}
+                          href={("https://tiktok.com/" + user?.socials[1] as any)}
                           aria-label="tiktok"
                         >
                           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
@@ -340,7 +340,7 @@ export default function ProfilePage() {
                       {(((user?.socials[2] as any))) && (
                         <a
                           className="text-red-500"
-                          href={("https://youtube.com/" + user?.socials as any)?.youtubeHandle ?? socials.find((s) => s.toLowerCase().includes("youtube")) ?? "#"}
+                          href={("https://youtube.com/" + user?.socials[2] as any)}
                           aria-label="youtube"
                         >
                           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M10 15l5.2-3L10 9v6zM21.8 8s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C15.7 4.3 12 4.3 12 4.3h-.1s-3.7 0-6.9.4c-.4 0-1.4.1-2.1 1C2.4 6.4 2.2 8 2.2 8S2 9.9 2 11.8v.4C2 14.1 2.2 16 2.2 16s.2 1.6.8 2.3c.8.9 1.9.9 2.4 1 1.7.2 6.9.4 6.9.4s3.7 0 6.9-.4c.4 0 1.4-.1 2.1-1 .6-.7.8-2.3.8-2.3s.2-1.9.2-3.8v-.4c0-1.9-.2-3.8-.2-3.8z"/></svg>
@@ -349,7 +349,7 @@ export default function ProfilePage() {
                        {(((user?.socials[3] as any))) && (
                         <a
                           className="text-red-500"
-                          href={(user?.socials as any)?.bluesky ?? socials.find((s) => s.toLowerCase().includes("bluesky")) ?? "#"}
+                          href={(user?.socials[3] as any)}
                           aria-label="bluesky"
                         >
                           <FontAwesomeIcon icon={faBluesky} className="h-6 w-6"/>
@@ -358,7 +358,7 @@ export default function ProfilePage() {
                       {(((user?.socials[4] as any))) && (
                         <a
                           className="text-indigo-500"
-                          href={(user?.socials as any)?.discordHandle ?? socials.find((s) => s.toLowerCase().includes("discord")) ?? "#"}
+                          href={(user?.socials[4] as any)}
                           aria-label="discord"
                         >
                           <FontAwesomeIcon icon={faDiscord} className="h-6 w-6"/>
@@ -367,16 +367,16 @@ export default function ProfilePage() {
                       {(((user?.socials[5] as any))) && (
                         <a
                           className="text-orange-400"
-                          href= {("https://patreon.com/c/" +  user?.socials as any)?.patreonHandle ?? socials.find((s) => s.toLowerCase().includes("patreon")) ?? "#"}
+                          href= {("https://patreon.com/c/" +  user?.socials[5] as any)}
                           aria-label="patreon"
                         >
                           <FontAwesomeIcon icon={faPatreon} className="h-6 w-6"/>
                         </a>
                       )}    
-                       {(((user?.socials[6] as any))) && (
+                       {(((user?.socials[6]))) && (
                         <a
                           className="text-orange-500"
-                          href={("https://soundcloud.com/" + user?.socials as any)?.soundcloudHandle ?? socials.find((s) => s.toLowerCase().includes("soundcloud")) ?? "#"}
+                          href={("https://soundcloud.com/" + user?.socials[6] as any)}
                           aria-label="soundcloud"
                         >
                          <FontAwesomeIcon icon={faSoundcloud} className="h-6 w-6"/>
@@ -387,7 +387,7 @@ export default function ProfilePage() {
                           className="text-red-500"
                           href={
                             ((user?.socials as any)?.bandcampHandle)
-                              ? `https://${(user?.socials as any).bandcampHandle}.bandcamp.com`
+                              ? `https://${(user?.socials[7] as any)}.bandcamp.com`
                               : (socials.find((s) => s.toLowerCase().includes("bandcamp")) ?? "#")
                           }
                           aria-label="bandcamp"

@@ -1,6 +1,7 @@
 import "./globals.css"
 import { ReactNode } from "react"
 import SolanaWalletProvider from "../components/SolanaWalletProvider";
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata = {
   title: "Senfiltro",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-black text-white font-sans">
        <SolanaWalletProvider>
           {children}
+            <Analytics />
         </SolanaWalletProvider>
       </body>
     </html>

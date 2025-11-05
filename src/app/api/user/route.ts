@@ -33,23 +33,6 @@ async function parseRequestBody(req: Request): Promise<{ payloadObj: Record<stri
   }
 }
 
-function parseSocials(value: any, existing: string[] | undefined) {
-  if (!value) return existing ?? [];
-  if (Array.isArray(value)) return value.map(String).map(s => s.trim()).filter(Boolean);
-  if (typeof value === "string") {
-    const str = value.trim();
-    try {
-      const parsed = JSON.parse(str);
-      if (Array.isArray(parsed)) return parsed.map(String).map(s => s.trim()).filter(Boolean);
-      return [String(parsed).trim()];
-    } catch {
-      if (str.includes(",")) return str.split(",").map(s => s.trim()).filter(Boolean);
-      return [str];
-    }
-  }
-  return existing ?? [];
-}
-
 export async function POST(req: Request) {
   const { payloadObj, signedMessage } = await parseRequestBody(req);
 
@@ -116,26 +99,35 @@ export async function POST(req: Request) {
     const walletAddress = payloadObj.walletAddress ?? payloadObj.wallet ?? (pubkey ?? null);
     const id = payloadObj.id ?? null;
 
-    let user = null;
+    let user: any = null;
     if (id) user = await User.findById(id);
     else if (walletAddress) user = await User.findOne({ walletAddress });
 
     if (!user) user = new User({ walletAddress: walletAddress ?? undefined });
 
     // apply updatable fields
-    const updatable = ["name", "username", "bio", "email", "location", "website", "displayEmail"];
+    const updatable = ["name", "username", "bio", "email", "location", "website", "displayEmail", "instagram", "tiktok", "youtube", "bluesky", "soundcloud", "discord", "patreon", "bandcamp"];
     for (const key of updatable) {
       if (payloadObj[key] !== undefined) user[key] = payloadObj[key];
     }
 
-    // socials
-    user.socials = parseSocials(payloadObj.socials, user.socials);
+    // build socials object as requested
+    user.socials = {
+      instagram: payloadObj.instagram || "",
+      tiktok: payloadObj.tiktok || "",
+      youtube: payloadObj.youtube || "",
+      bluesky: payloadObj.bluesky || "",
+      soundcloud: payloadObj.soundcloud || "",
+      discord: payloadObj.discord || "",
+      patreon: payloadObj.patreon || "",
+      bandcamp: payloadObj.bandcamp || "",
+    }
 
     await user.save();
 
     return makeResponse({ ok: true, data: user, via: pubkey ? "signature" : (ALLOW_NO_AUTH ? "no-auth" : "none") }, 200);
   } catch (err) {
     console.error("User save error", err);
-      return makeResponse({ error: "Internal server error", detail: String(err) }, 500);
+    return makeResponse({ error: "Internal server error", detail: String(err) }, 500);
   }
 }

@@ -18,7 +18,16 @@ type UserModel = {
   walletAddress?: string;
   website?: string;
   location?: string;
-  socials?: string[];
+  socials?: {
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+    bluesky?: string;
+    soundcloud?: string;
+    discord?: string;
+    patreon?: string;
+    bandcamp?: string;
+  }
   [key: string]: any;
 };
 
@@ -34,8 +43,6 @@ export default function ProfilePage() {
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
-  const [socials, setSocials] = useState<string[]>([]);
-  const [newSocial, setNewSocial] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [tiktokHandle, setTiktokHandle] = useState("");
   const [youtubeHandle, setYoutubeHandle] = useState("");
@@ -72,16 +79,14 @@ export default function ProfilePage() {
           setEmail(json?.data?.email ?? "");
           setBio(json?.data?.bio ?? "");
           setWebsite(json?.data?.website ?? "");
-          const sArr = Array.isArray(json?.data?.socials) ? json.data.socials : [];
-          setSocials(sArr);
-          setInstagramHandle(sArr.find((s: string) => s.toLowerCase().includes("instagram")) ?? "");
-          setTiktokHandle(sArr.find((s: string) => s.toLowerCase().includes("tiktok")) ?? "");
-          setYoutubeHandle(sArr.find((s: string) => s.toLowerCase().includes("youtube")) ?? "");
-          setBlueskyHandle(sArr.find((s: string) => s.toLowerCase().includes("bluesky")) ?? "");
-          setSoundcloudHandle(sArr.find((s: string) => s.toLowerCase().includes("soundcloud")) ?? "");
-          setDiscordHandle(sArr.find((s: string) => s.toLowerCase().includes("discord")) ?? "");
-          setPatreonHandle(sArr.find((s: string) => s.toLowerCase().includes("patreon")) ?? "");
-          setBandcampHandle(sArr.find((s: string) => s.toLowerCase().includes("bandcamp")) ?? "");
+          setInstagramHandle(json?.data?.socials?.instagram ?? "");
+          setTiktokHandle(json?.data?.socials?.tiktok ?? "");
+          setYoutubeHandle(json?.data?.socials?.youtube ?? "");
+          setBlueskyHandle(json?.data?.socials?.bluesky ?? "");
+          setSoundcloudHandle(json?.data?.socials?.soundcloud ?? "");
+          setDiscordHandle(json?.data?.socials?.discord ?? "");
+          setPatreonHandle(json?.data?.socials?.patreon ?? "");
+          setBandcampHandle(json?.data?.socials?.bandcamp ?? "");
         }
       } catch (err) {
         console.error("Failed to load user via api client", err);
@@ -112,24 +117,7 @@ export default function ProfilePage() {
     // implement upload flow separately
   }
 
-  // socials helpers
-  const getSocial = (keyword: string) => socials.find((s) => s.toLowerCase().includes(keyword)) ?? "";
-  const setSocial = (keyword: string, value: string) => {
-    setSocials((prev) => {
-      const others = prev.filter((s) => !s.toLowerCase().includes(keyword));
-      return value.trim() ? [...others, value.trim()] : others;
-    });
-  };
-  function addSocialUrl() {
-    if (!newSocial.trim()) return;
-    setSocials((s) => [...s, newSocial.trim()]);
-    setNewSocial("");
-  }
-  function removeSocial(idx: number) {
-    setSocials((s) => s.filter((_, i) => i !== idx));
-  }
-
-    async function signAndSaveProfile(payload: Record<string, any>) {
+  async function signAndSaveProfile(payload: Record<string, any>) {
     setLoading(true);
     try {
       const provider = (window as any).solana;
@@ -163,34 +151,57 @@ export default function ProfilePage() {
     }
   }
 
+
+function buildSocialUrl(platform: string, value?: string) {
+  if (!value) return null;
+  let v = String(value).trim();
+  // already absolute
+  if (v.startsWith("http://") || v.startsWith("https://") || v.startsWith("mailto:")) return v;
+  // strip leading @
+  const handle = v.replace(/^@/, "").trim();
+
+  switch (platform) {
+    case "instagram":
+      return `https://instagram.com/${handle}`;
+    case "tiktok":
+      return `https://www.tiktok.com/@${handle}`;
+    case "youtube":
+      // if user pasted a channel/watch path without protocol, make absolute
+      if (handle.includes("channel") || handle.includes("watch") || handle.includes("youtu.be")) {
+        return handle.startsWith("http") ? handle : `https://${handle}`;
+      }
+      return `https://youtube.com/${handle}`;
+    case "soundcloud":
+      return handle.startsWith("http") ? handle : `https://soundcloud.com/${handle}`;
+    case "bandcamp":
+      // allow full host or shop name
+      if (handle.includes(".")) return handle.startsWith("http") ? handle : `https://${handle}`;
+      return `https://${handle}.bandcamp.com`;
+    case "patreon":
+      return `https://www.patreon.com/${handle}`;
+    case "discord":
+      // allow invites like "discord.gg/xyz" or full urls or just code
+      if (handle.startsWith("discord.gg") || handle.includes("discord.com") || handle.includes("invite")) {
+        return handle.startsWith("http") ? handle : `https://${handle}`;
+      }
+      return `https://discord.gg/${handle}`;
+    case "bluesky":
+      // prefer bsky.app profile path if a bare handle provided
+      if (handle.includes("bsky.app") || handle.includes("bluesky")) {
+        return handle.startsWith("http") ? handle : `https://${handle}`;
+      }
+      return `https://bsky.app/profile/${handle}.bsky.social`;
+    default:
+      // fallback: make absolute
+      return handle.startsWith("http") ? handle : `https://${handle}`;
+  }
+}
+
   async function onSave(e?: React.FormEvent) {
     e?.preventDefault();
     setEditing(false);
 
     // build merged socials array from individual handles + extra list
-    const otherSocials = socials.filter((s) =>
-      !(
-        s.toLowerCase().includes("instagram") ||
-        s.toLowerCase().includes("tiktok") ||
-        s.toLowerCase().includes("youtube")
-      )
-    );
-
-    const mergedSocialsArr = [
-      ...otherSocials,
-      ...(instagramHandle.trim() ? [instagramHandle.trim()] : []),
-      ...(tiktokHandle.trim() ? [tiktokHandle.trim()] : []),
-      ...(youtubeHandle.trim() ? [youtubeHandle.trim()] : []),
-      ...(blueskyHandle.trim() ? [blueskyHandle.trim()] : []),
-      ...(soundcloudHandle.trim() ? [soundcloudHandle.trim()] : []),
-      ...(discordHandle.trim() ? [discordHandle.trim()] : []),
-      ...(patreonHandle.trim() ? [patreonHandle.trim()] : []),
-      ...(bandcampHandle.trim() ? [bandcampHandle.trim()] : []),
-    ];
-
-    // send socials as JSON string (server expects string/array)
-    const mergedSocials = JSON.stringify(mergedSocialsArr);
-
     const payload = {
       walletAddress: walletAddr ?? undefined,
       name,
@@ -198,7 +209,14 @@ export default function ProfilePage() {
       email,
       bio,
       website,
-      socials: mergedSocials,
+      instagram: instagramHandle,
+      tiktok: tiktokHandle,
+      youtube: youtubeHandle,
+      bluesky: blueskyHandle,
+      soundcloud: soundcloudHandle,
+      discord: discordHandle,
+      patreon: patreonHandle,
+      bandcamp: bandcampHandle
     };
 
     try {
@@ -206,9 +224,15 @@ export default function ProfilePage() {
       const result = await signAndSaveProfile(payload);
 
       // optimistic UI update on success
-      setUser((u) => ({ ...(u ?? {}), ...payload, socials: mergedSocialsArr }));
-      // keep local socials state in sync
-      setSocials(mergedSocialsArr);
+      setUser((u) => ({ ...(u ?? {}), ...payload}));
+      setInstagramHandle(payload.instagram ?? "");
+      setTiktokHandle(payload.tiktok ?? "");
+      setYoutubeHandle(payload.youtube ?? "");
+      setBlueskyHandle(payload.bluesky ?? "");
+      setSoundcloudHandle(payload.soundcloud ?? "");
+      setDiscordHandle(payload.discord ?? "");
+      setPatreonHandle(payload.patreon ?? "");
+      setBandcampHandle(payload.bandcamp ?? "");
       console.log("profile saved result:", result);
     } catch (err) {
       console.error("Failed to save user (wallet-sign) :", err);
@@ -315,90 +339,56 @@ export default function ProfilePage() {
                 </div>
 
                 {/* socials icons: instagram, tiktok, youtube displayed */}
-                  {user?.socials && (((Array.isArray(user.socials) && user.socials.length > 0) || typeof user.socials === "object")) && (
-                    <div className="mt-4 flex items-center gap-4">
-                      {(((user?.socials[0] as any))) && (
-                        <a
-                          className="text-pink-400"
-                          href={("https://instagram.com/" + user?.socials[0] as any)}
-                          aria-label="instagram"
-                        >
-                          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5zm6.8-2.3a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
-                        </a>
-                      )}
+                     <div className="mt-4 flex items-center gap-4">
+                  {user?.socials?.instagram ? (
+                    <a className="text-pink-400" href={buildSocialUrl("instagram", user.socials.instagram) ?? undefined} target="_blank" rel="noreferrer">
+                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.5A4.5 4.5 0 1 0 16.5 13 4.5 4.5 0 0 0 12 8.5z"/></svg>
+                    </a>
+                  ) : null}
 
-                      {(((user?.socials[1] as any))) && (
-                        <a
-                          className="text-white"
-                          href={("https://tiktok.com/" + user?.socials[1] as any)}
-                          aria-label="tiktok"
-                        >
-                          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
-                        </a>
-                      )}
+                  {user?.socials?.tiktok ? (
+                    <a className="text-white" href={buildSocialUrl("tiktok", user.socials.tiktok) ?? undefined} target="_blank" rel="noreferrer">
+                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3v8.5A4.5 4.5 0 0 1 12.5 16 4.5 4.5 0 1 1 13 6.5V3z"/></svg>
+                    </a>
+                  ) : null}
 
-                      {(((user?.socials[2] as any))) && (
-                        <a
-                          className="text-red-500"
-                          href={("https://youtube.com/" + user?.socials[2] as any)}
-                          aria-label="youtube"
-                        >
-                          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M10 15l5.2-3L10 9v6zM21.8 8s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C15.7 4.3 12 4.3 12 4.3h-.1s-3.7 0-6.9.4c-.4 0-1.4.1-2.1 1C2.4 6.4 2.2 8 2.2 8S2 9.9 2 11.8v.4C2 14.1 2.2 16 2.2 16s.2 1.6.8 2.3c.8.9 1.9.9 2.4 1 1.7.2 6.9.4 6.9.4s3.7 0 6.9-.4c.4 0 1.4-.1 2.1-1 .6-.7.8-2.3.8-2.3s.2-1.9.2-3.8v-.4c0-1.9-.2-3.8-.2-3.8z"/></svg>
-                        </a>
-                      )}
-                       {(((user?.socials[3] as any))) && (
-                        <a
-                          className="text-red-500"
-                          href={(user?.socials[3] as any)}
-                          aria-label="bluesky"
-                        >
-                          <FontAwesomeIcon icon={faBluesky} className="h-6 w-6"/>
-                        </a>
-                      )}
-                      {(((user?.socials[4] as any))) && (
-                        <a
-                          className="text-indigo-500"
-                          href={(user?.socials[4] as any)}
-                          aria-label="discord"
-                        >
-                          <FontAwesomeIcon icon={faDiscord} className="h-6 w-6"/>
-                        </a>
-                      )}
-                      {(((user?.socials[5] as any))) && (
-                        <a
-                          className="text-orange-400"
-                          href= {("https://patreon.com/c/" +  user?.socials[5] as any)}
-                          aria-label="patreon"
-                        >
-                          <FontAwesomeIcon icon={faPatreon} className="h-6 w-6"/>
-                        </a>
-                      )}    
-                       {(((user?.socials[6]))) && (
-                        <a
-                          className="text-orange-500"
-                          href={("https://soundcloud.com/" + user?.socials[6] as any)}
-                          aria-label="soundcloud"
-                        >
-                         <FontAwesomeIcon icon={faSoundcloud} className="h-6 w-6"/>
-                        </a>
-                      )}  
-                       {(((user?.socials[7] as any))) && (
-                        <a
-                          className="text-red-500"
-                          href={
-                            ((user?.socials as any)?.bandcampHandle)
-                              ? `https://${(user?.socials[7] as any)}.bandcamp.com`
-                              : (socials.find((s) => s.toLowerCase().includes("bandcamp")) ?? "#")
-                          }
-                          aria-label="bandcamp"
-                        >
-                          <FontAwesomeIcon icon={faBandcamp} className="h-6 w-6"/>
-                        </a>
-                      )}
+                  {user?.socials?.youtube ? (
+                    <a className="text-red-500" href={buildSocialUrl("youtube", user.socials.youtube) ?? undefined} target="_blank" rel="noreferrer">
+                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M10 15l5.2-3L10 9v6z"/></svg>
+                    </a>
+                  ) : null}
+
+                  {user?.socials?.bluesky ? (
+                    <a className="text-sky-300" href={buildSocialUrl("bluesky", user.socials.bluesky) ?? undefined} target="_blank" rel="noreferrer">
+                      <FontAwesomeIcon icon={faBluesky} className="h-6 w-6"/>
+                    </a>
+                  ) : null}
+
+                  {user?.socials?.discord ? (
+                    <a className="text-indigo-500" href={buildSocialUrl("discord", user.socials.discord) ?? undefined} target="_blank" rel="noreferrer">
+                      <FontAwesomeIcon icon={faDiscord} className="h-6 w-6"/>
+                    </a>
+                  ) : null}
+
+                  {user?.socials?.patreon ? (
+                    <a className="text-orange-400" href={buildSocialUrl("patreon", user.socials.patreon) ?? undefined} target="_blank" rel="noreferrer">
+                      <FontAwesomeIcon icon={faPatreon} className="h-6 w-6"/>
+                    </a>
+                  ) : null}
+
+                  {user?.socials?.soundcloud ? (
+                    <a className="text-orange-500" href={buildSocialUrl("soundcloud", user.socials.soundcloud) ?? undefined} target="_blank" rel="noreferrer">
+                      <FontAwesomeIcon icon={faSoundcloud} className="h-6 w-6"/>
+                    </a>
+                  ) : null}
+
+                  {user?.socials?.bandcamp ? (
+                    <a className="text-white" href={buildSocialUrl("bandcamp", user.socials.bandcamp) ?? undefined} target="_blank" rel="noreferrer">
+                      <FontAwesomeIcon icon={faBandcamp} className="h-6 w-6"/>
+                    </a>
+                  ) : null}
 
                     </div>
-
-                  )}
               </div>
             </div>
           ) : (
@@ -430,7 +420,7 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Socials (Instagram / TikTok / YouTube shown)</label>
+                <label className="block text-xs text-gray-400 mb-1">Socials</label>
              
              <div className="flex items-center gap-2 mt-4">
                <div className="text-pink-400">
@@ -465,7 +455,7 @@ export default function ProfilePage() {
                 <div className="text-red-500">
                    <FontAwesomeIcon icon={faDiscord} color="purple" className="h-5 w-5" />
                 </div>
-                <input value={discordHandle} onChange={(e) => setDiscordHandle(e.target.value)} placeholder="Discord URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
+                <input value={discordHandle} onChange={(e) => setDiscordHandle(e.target.value)} placeholder="Discord Invite (discord.gg/[invite]) or URL" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
               </div>      
 
               <div className="flex items-center gap-2">
@@ -489,20 +479,6 @@ export default function ProfilePage() {
                 </div>
                 <input value={bandcampHandle} onChange={(e) => setBandcampHandle(e.target.value)} placeholder="Bandcamp profile" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
               </div>
-
-                {/* <div className="mt-3 flex gap-2">
-                  <input value={newSocial} onChange={(e) => setNewSocial(e.target.value)} placeholder="Add another social (https://...)" className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white" />
-                  <button type="button" onClick={addSocialUrl} className="px-3 py-2 bg-[#1976D2] rounded text-white">Add</button>
-                </div>
-
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {socials.map((s, i) => (
-                    <div key={i} className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded border border-gray-700">
-                      <div className="text-sm text-gray-200 truncate max-w-xs">{s}</div>
-                      <button type="button" onClick={() => removeSocial(i)} className="text-xs text-red-400">Remove</button>
-                    </div>
-                  ))}
-                </div> */}
               </div>
 
               <div className="flex gap-2 justify-end">

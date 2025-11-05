@@ -4,13 +4,13 @@ import toJSON from "./plugins/toJSON";
 // USER SCHEMA
 const userSchema = new mongoose.Schema(
   {
-    walletAddress:{
+    walletAddress: {
       type: String,
-      default: null
+      default: null,
     },
     username: {
       type: String,
-      lowercase:true
+      lowercase: true,
     },
     name: {
       type: String,
@@ -31,8 +31,14 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
     socials: {
-      type: [String],
-      default: [],
+      instagram: { type: String, default: "" },
+      tiktok: { type: String, default: "" },
+      youtube: { type: String, default: "" },
+      bluesky: { type: String, default: "" },
+      soundcloud: { type: String, default: "" },
+      discord: { type: String, default: "" },
+      patreon: { type: String, default: "" },
+      bandcamp: { type: String, default: "" },
     },
     website: {
       type: String,
@@ -42,7 +48,7 @@ const userSchema = new mongoose.Schema(
     },
     bannerImage: {
       type: String,
-    }
+    },
   },
   {
     timestamps: true,

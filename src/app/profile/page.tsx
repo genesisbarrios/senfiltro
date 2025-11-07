@@ -37,6 +37,7 @@ export default function ProfilePage() {
   const { publicKey } = useWallet();
 
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,6 +52,8 @@ export default function ProfilePage() {
   const [bandcampHandle, setBandcampHandle] = useState("");
   const [discordHandle, setDiscordHandle] = useState("");
   const [patreonHandle, setPatreonHandle] = useState("");
+  const [image, setImage] = useState("");
+  const [bannerImage, setBannerImage] = useState("");
 
   // getPublicKey should return the wallet string if you have it in client state
   async function getPublicKey(): Promise<string | null> {
@@ -78,6 +81,8 @@ export default function ProfilePage() {
           setUsername(json?.data?.username ?? "");
           setEmail(json?.data?.email ?? "");
           setBio(json?.data?.bio ?? "");
+          setImage(json?.data?.image ?? "");
+          setBannerImage(json?.data?.bannerImage ?? "");
           setWebsite(json?.data?.website ?? "");
           setInstagramHandle(json?.data?.socials?.instagram ?? "");
           setTiktokHandle(json?.data?.socials?.tiktok ?? "");
@@ -105,16 +110,89 @@ export default function ProfilePage() {
     bannerInputRef.current?.click();
   }
 
+  function onEditProfilePhotoClick(){
+    profilePhotoInputRef.current?.click();
+  }
+
   function onEditInfoClick() {
     // toggle edit mode (info section only)
     setEditing((s) => !s);
   }
 
-  function onBannerFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+  async function onBannerFileChange(e: React.ChangeEvent<HTMLInputElement> | any) {
+    // support being called from an <input onChange> or passed an event-like object
+    const f = e?.target?.files?.[0] ?? e?.files?.[0] ?? null;
     if (!f) return;
     console.log("Selected banner file:", f);
-    // implement upload flow separately
+    if (!f.type?.startsWith?.("image/")) {
+      console.error("Only image uploads allowed");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("wallet", walletAddr ?? "unknown");
+
+      const res = await fetch("/api/pinata/upload-banner", {
+        method: "POST",
+        body: fd,
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        console.error("banner upload failed", json);
+        return;
+      }
+
+      const url = json?.url ?? null;
+      if (url) {
+        setBannerImage(url);
+        setUser((u) => ({ ...(u ?? {}), bannerPhoto: url, bannerImage: url }));
+      }
+    } catch (err) {
+      console.error("banner upload error", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onAvatarChange(e: React.ChangeEvent<HTMLInputElement> | any) {
+    // support being called from an <input onChange> or passed an event-like object
+    const f = e?.target?.files?.[0] ?? e?.files?.[0] ?? null;
+    if (!f) return;
+    console.log("Selected profile photo file:", f);
+    if (!f.type?.startsWith?.("image/")) {
+      console.error("Only image uploads allowed");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("wallet", walletAddr ?? "unknown");
+
+      const res = await fetch("/api/pinata/upload-avatar", {
+        method: "POST",
+        body: fd,
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        console.error("avatar upload failed", json);
+        return;
+      }
+
+      const url = json?.url ?? null;
+      if (url) {
+        setImage(url);
+        setUser((u) => ({ ...(u ?? {}), profilePhoto: url, image: url }));
+      }
+    } catch (err) {
+      console.error("avatar upload error", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function signAndSaveProfile(payload: Record<string, any>) {
@@ -248,9 +326,9 @@ function buildSocialUrl(platform: string, value?: string) {
         <div className="relative mt-4">
           {/* Banner: rounded top only */}
           <div className="h-44 w-full bg-gradient-to-r from-gray-800 to-gray-900 rounded-t-lg overflow-hidden flex items-center justify-center border border-gray-800 border-b-0 relative">
-            {user?.bannerPhoto ? (
+            {user?.bannerImage || bannerImage ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.bannerPhoto} alt="banner" className="w-full h-full object-cover" />
+              <img src={`https://gateway.pinata.cloud/ipfs/${bannerImage}`} alt="banner" className="w-full h-full object-cover" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img src="https://images.pexels.com/photos/255379/pexels-photo-255379.jpeg" alt="placeholder" className="w-full h-full object-cover" />
@@ -268,10 +346,10 @@ function buildSocialUrl(platform: string, value?: string) {
           {/* Profile photo centered and overlapping border between banner and info */}
         <div className="absolute left-1/2 transform -translate-x-1/2 top-full -translate-y-1/2 z-20">
             <div className="-mt-14">
-              {user?.profilePhoto ? (
+              {user?.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={user.profilePhoto}
+                  src={`https://gateway.pinata.cloud/ipfs/${user.image}`}
                   alt="profile"
                   className="w-28 h-28 rounded-full border-4 border-gray-900 object-cover bg-gray-700"
                   width={112}
@@ -284,9 +362,10 @@ function buildSocialUrl(platform: string, value?: string) {
                       <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-4 0-8 2-8 4v2h16v-2c0-2-4-4-8-4z" />
                     </svg>
                   </div>
-
-                  <button
-                    onClick={onEditBannerClick}
+                </div>
+              )}
+               <button
+                    onClick={onEditProfilePhotoClick}
                     aria-label="Edit profile photo"
                     title="Edit profile photo"
                     className="absolute left-1/2 transform -translate-x-1/2 translate-y-1/4 bottom-0 bg-black/70 hover:bg-black/80 text-white p-1.5 rounded-full border border-gray-700 z-30"
@@ -296,14 +375,13 @@ function buildSocialUrl(platform: string, value?: string) {
                       <path d="M2 15.25V18h2.75l8.486-8.486-2.75-2.75L2 15.25z" />
                     </svg>
                   </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
         {/* Hidden banner file input */}
         <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={onBannerFileChange} />
+        <input ref={profilePhotoInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
 
         {/* Info panel pulled up to touch the banner (no gap) */}
         <section className="-mt-8 bg-gray-900 border border-gray-800 rounded-b-lg p-4 shadow-sm relative">

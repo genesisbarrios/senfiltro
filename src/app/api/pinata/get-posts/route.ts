@@ -167,6 +167,10 @@ export async function GET(req: Request) {
     let pageOffset = 0;
     const metadataRows: PinRow[] = [];
 
+    // fetch first page to allow debugging/logging
+    const firstPage = await fetchPinListPage(pageLimit, 0);
+    console.log("GET: firstPage length", firstPage.length);
+
     // paginate until we have enough or pages exhausted
     while (metadataRows.length < maxResults) {
       console.log("GET: fetching pin list page", { pageOffset, pageLimit });
@@ -190,6 +194,15 @@ export async function GET(req: Request) {
     }
 
     console.log("GET: total metadataRows found", metadataRows.length);
+
+    //debug only
+    const sample = (firstPage || []).slice(0, 25).map((r: any) => ({
+      name: r?.metadata?.name ?? r?.pin?.metadata?.name ?? null,
+      ipfs_pin_hash: r?.ipfs_pin_hash ?? r?.ipfs_hash ?? r?.pin?.cid ?? null,
+      pin: r?.pin ? { cid: r.pin.cid, size: r.pin.size } : null,
+    }));
+    return NextResponse.json({ success: true, results: [], debugRows: sample }, { status: 200 });
+
 
     const results: any[] = [];
     let idx = 0;

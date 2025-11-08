@@ -101,7 +101,7 @@ type UserModel = {
     }
   }
 
-  export async function fetchPostsFromIpfs() {
+  async function fetchPostsFromIpfs() {
   try {
     const res = await fetch("/api/pinata/get-posts?pageLimit=50&maxResults=200&nameHint=metadata", { cache: "no-store" });
     if (!res.ok) {

@@ -1,3 +1,4 @@
+import { debug } from "console";
 import { NextResponse } from "next/server";
 
 const PINATA_JWT = process.env.PINATA_JWT;
@@ -161,9 +162,9 @@ export async function GET(req: Request) {
     const pageLimit = Number(url.searchParams.get("pageLimit") || "50");
     const maxResults = Number(url.searchParams.get("maxResults") || "200");
     const nameHint = String(url.searchParams.get("nameHint") || "metadata");
+    const debug = url.searchParams.get("debug") === "1";
 
-    console.log("GET /api/pinata/get-posts start", { pageLimit, maxResults, nameHint });
-
+    console.log("GET /api/pinata/get-posts start", { pageLimit, maxResults, nameHint, debug });
     let pageOffset = 0;
     const metadataRows: PinRow[] = [];
 
@@ -196,13 +197,14 @@ export async function GET(req: Request) {
     console.log("GET: total metadataRows found", metadataRows.length);
 
     //debug only
-    const sample = (firstPage || []).slice(0, 25).map((r: any) => ({
-      name: r?.metadata?.name ?? r?.pin?.metadata?.name ?? null,
-      ipfs_pin_hash: r?.ipfs_pin_hash ?? r?.ipfs_hash ?? r?.pin?.cid ?? null,
-      pin: r?.pin ? { cid: r.pin.cid, size: r.pin.size } : null,
-    }));
+    if (debug) {
+      const sample = (firstPage || []).slice(0, 25).map((r: any) => ({
+        name: r?.metadata?.name ?? r?.pin?.metadata?.name ?? null,
+        ipfs_pin_hash: r?.ipfs_pin_hash ?? r?.ipfs_hash ?? r?.pin?.cid ?? null,
+        pin: r?.pin ? { cid: r.pin.cid, size: r.pin.size } : null,
+      }));
     return NextResponse.json({ success: true, results: [], debugRows: sample }, { status: 200 });
-
+  }
 
     const results: any[] = [];
     let idx = 0;

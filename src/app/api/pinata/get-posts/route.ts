@@ -72,6 +72,7 @@ async function fetchJsonWithFallback(url?: string) {
 
     console.log("fetchJsonWithFallback: fetching", attempt);
     let res = await fetch(attempt);
+
     if (!res.ok) {
       console.warn("fetchJsonWithFallback: primary gateway returned non-ok", { url: attempt, status: res.status });
       try {
@@ -85,16 +86,49 @@ async function fetchJsonWithFallback(url?: string) {
         console.warn("fetchJsonWithFallback: building fallback url failed", e);
       }
     }
+
     if (!res.ok) {
       console.warn("fetchJsonWithFallback: both gateways failed", { url: attempt, status: res.status });
       return null;
     }
-    const json = await res.json().catch((e) => {
-      console.error("fetchJsonWithFallback: json parse failed", e);
+
+    const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+    // If response is JSON-like, parse it safely.
+    if (contentType.includes("application/json") || contentType.includes("text/json")) {
+      try {
+        const json = await res.json();
+        console.log("fetchJsonWithFallback: success (json)", { url: attempt });
+        return json;
+      } catch (e) {
+        console.error("fetchJsonWithFallback: json parse failed despite content-type", e);
+        return null;
+      }
+    }
+
+    // If not explicitly JSON, read text and attempt to parse if it looks like JSON.
+    const text = await res.text().catch((e) => {
+      console.error("fetchJsonWithFallback: failed to read body as text", e);
       return null;
     });
-    console.log("fetchJsonWithFallback: success", { url: attempt, hasJson: !!json });
-    return json;
+    if (!text) {
+      console.warn("fetchJsonWithFallback: empty body", { url: attempt });
+      return null;
+    }
+    const trimmed = text.trim();
+    // quick heuristic: HTML pages start with '<' (error pages), skip them
+    if (trimmed.startsWith("<")) {
+      console.warn("fetchJsonWithFallback: response appears to be HTML, not JSON", { url: attempt });
+      return null;
+    }
+    // attempt to parse JSON from text
+    try {
+      const parsed = JSON.parse(trimmed);
+      console.log("fetchJsonWithFallback: success (parsed from text)", { url: attempt });
+      return parsed;
+    } catch (e) {
+      console.error("fetchJsonWithFallback: text parse failed (not JSON)", e);
+      return null;
+    }
   } catch (err) {
     console.error("fetchJsonWithFallback: fetch error", err);
     return null;

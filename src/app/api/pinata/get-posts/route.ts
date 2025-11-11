@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 const PINATA_JWT = process.env.PINATA_JWT;
+const PUBLIC_PINATA_GATEWAY = "https://gateway.pinata.cloud";
+
 // normalize gateway envs: ensure they include protocol
 function normalizeGateway(g?: string, defaultUrl = "https://gateway.pinata.cloud") {
   if (!g) return defaultUrl;
@@ -303,8 +305,22 @@ export async function GET(req: Request) {
           null;
         console.log("GET: processing metadata row", { idx, cid });
         // Build a gateway URL for the cid (handles host/path or plain CID)
-        const metadataUrl = buildGatewayUrlFromCid(cid);
-        console.log("GET: metadataUrl", metadataUrl);
+        let metadataUrl = buildGatewayUrlFromCid(cid);
+        try {
+          if (metadataUrl) {
+            // force metadata JSON fetch to use public Pinata gateway to avoid custom gateway blocking
+            const u = new URL(metadataUrl.startsWith("http") ? metadataUrl : `https://${metadataUrl}`);
+            const pub = new URL(PUBLIC_PINATA_GATEWAY);
+            u.protocol = pub.protocol;
+            u.host = pub.host;
+            metadataUrl = u.toString();
+            console.log("GET: metadataUrl (forced public gateway)", metadataUrl);
+          } else {
+            console.log("GET: metadataUrl (undefined)", metadataUrl);
+          }
+        } catch (e) {
+          console.warn("GET: failed to normalize metadataUrl, using original", { metadataUrl, err: String(e) });
+        }
         let meta = await fetchJsonWithFallback(metadataUrl);
 
         if (!meta) {

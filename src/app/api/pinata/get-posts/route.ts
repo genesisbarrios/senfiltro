@@ -26,7 +26,17 @@ async function fetchPinListPage(pageLimit = 50, pageOffset = 0): Promise<PinRow[
     return null;
   });
   console.log("fetchPinListPage: received", { rowsLength: json?.rows?.length ?? 0 });
+  
+  if (Array.isArray(json?.rows) && json.rows.length) {
+    const sample = json.rows.slice(0, 5).map((r: any) => ({
+      name: r?.metadata?.name ?? r?.pin?.metadata?.name ?? null,
+      ipfs_pin_hash: r?.ipfs_pin_hash ?? r?.ipfs_hash ?? r?.pin?.cid ?? null,
+    }));
+    console.log("fetchPinListPage: sample rows", sample);
+  }
+  
   return json?.rows ?? [];
+
 }
 
 function buildGatewayUrlFromCid(cidOrPath?: string) {

@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
 const PINATA_JWT = process.env.PINATA_JWT;
-const PINATA_GATEWAY = process.env.PINATA_GATEWAY || "https://gateway.pinata.cloud";
-const FALLBACK_GATEWAY = process.env.FALLBACK_IPFS_GATEWAY || "https://ipfs.io";
+// normalize gateway envs: ensure they include protocol
+function normalizeGateway(g?: string, defaultUrl = "https://gateway.pinata.cloud") {
+  if (!g) return defaultUrl;
+  const s = String(g).trim();
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  return `https://${s}`;
+}
+const PINATA_GATEWAY = normalizeGateway(process.env.PINATA_GATEWAY, "https://gateway.pinata.cloud");
+const FALLBACK_GATEWAY = normalizeGateway(process.env.FALLBACK_IPFS_GATEWAY, "https://ipfs.io");
 
 if (!PINATA_JWT) {
   console.warn("PINATA_JWT not set - /api/pinata/get-posts will fail without it");
@@ -18,7 +25,7 @@ async function fetchPinListPage(pageLimit = 50, pageOffset = 0): Promise<PinRow[
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error("fetchPinListPage: pinList request failed", { status: res.status, text });
+    console.error("fetchPinListPage: pinList request failed", { status: res.status, text: String(text).slice(0, 1000) });
     throw new Error(`pinList failed ${res.status} ${text}`);
   }
   const json = await res.json().catch((e) => {
@@ -26,7 +33,7 @@ async function fetchPinListPage(pageLimit = 50, pageOffset = 0): Promise<PinRow[
     return null;
   });
   console.log("fetchPinListPage: received", { rowsLength: json?.rows?.length ?? 0 });
-  
+
   if (Array.isArray(json?.rows) && json.rows.length) {
     const sample = json.rows.slice(0, 5).map((r: any) => ({
       name: r?.metadata?.name ?? r?.pin?.metadata?.name ?? null,
@@ -34,9 +41,8 @@ async function fetchPinListPage(pageLimit = 50, pageOffset = 0): Promise<PinRow[
     }));
     console.log("fetchPinListPage: sample rows", sample);
   }
-  
-  return json?.rows ?? [];
 
+  return json?.rows ?? [];
 }
 
 function buildGatewayUrlFromCid(cidOrPath?: string) {
@@ -82,7 +88,7 @@ async function fetchJsonWithFallback(url?: string) {
 
     console.log("fetchJsonWithFallback: fetching", attempt);
 
-    // helper to safely fetch and return Response or null
+    // safe fetch helper
     const safeFetch = async (u: string) => {
       try {
         return await fetch(u);
@@ -92,106 +98,75 @@ async function fetchJsonWithFallback(url?: string) {
       }
     };
 
-    let res = await safeFetch(attempt);
-    if (!res) return null;
+    const tryParseResponse = async (r: Response | null) => {
+      if (!r) return null;
+      const ct = String(r.headers.get("content-type") || "").toLowerCase();
+      if (ct.includes("application/json") || ct.includes("text/json")) {
+        try {
+          return await r.json();
+        } catch (e) {
+          const body = await r.text().catch(() => "");
+          console.error("fetchJsonWithFallback: json parse failed despite content-type", e, { contentType: ct, bodySnippet: String(body).slice(0, 1000) });
+          return null;
+        }
+      }
+      const text = await r.text().catch(() => null);
+      if (!text) return null;
+      const t = text.trim();
+      if (t.startsWith("<")) return null; // HTML error page
+      try {
+        return JSON.parse(t);
+      } catch {
+        return null;
+      }
+    };
 
-    // on non-ok try configured fallback origin
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
+    // primary
+    let res = await safeFetch(attempt);
+    const primaryBodySnippet = res ? (await res.clone().text().catch(() => "")).slice(0, 1000) : "";
+    if (res && res.ok) {
+      const parsed = await tryParseResponse(res);
+      if (parsed) return parsed;
+    } else if (res) {
       console.warn("fetchJsonWithFallback: primary returned non-ok", {
         url: attempt,
         status: res.status,
         contentType: res.headers.get("content-type"),
-        bodySnippet: String(errText).slice(0, 1000),
+        bodySnippet: primaryBodySnippet,
       });
-      try {
-        const attemptUrl = new URL(attempt);
-        const fallbackOrigin = new URL(FALLBACK_GATEWAY).origin;
-        const altUrl = `${fallbackOrigin}${attemptUrl.pathname}${attemptUrl.search}`;
-        console.log("fetchJsonWithFallback: trying fallback gateway", altUrl);
-        res = await safeFetch(altUrl) ?? res;
-      } catch (e) {
-        console.warn("fetchJsonWithFallback: building fallback url failed", e);
-      }
     }
 
-    if (!res) return null;
+    // ordered fallbacks
+    const fallbackCandidates: string[] = [];
 
-    // If content-type claims JSON try parse
-    const ct = String(res.headers.get("content-type") || "").toLowerCase();
-    if (ct.includes("application/json") || ct.includes("text/json")) {
-      try {
-        const j = await res.json();
-        console.log("fetchJsonWithFallback: parsed json", { url: attempt });
-        return j;
-      } catch (e) {
-        // fall through to text handling
-        const body = await res.text().catch(() => "");
-        console.error("fetchJsonWithFallback: json parse failed despite content-type", e, {
-          url: attempt,
-          contentType: ct,
-          bodySnippet: String(body).slice(0, 1000),
-        });
-      }
-    } else {
-      // read text once for heuristics
-      const text = await res.text().catch(() => null);
-      if (!text) {
-        console.warn("fetchJsonWithFallback: empty body, will try other fallbacks", { url: attempt });
-      } else {
-        const trimmed = text.trim();
-        if (trimmed.startsWith("<")) {
-          console.warn("fetchJsonWithFallback: response looks like HTML, will try other fallbacks", {
-            url: attempt,
-            snippet: trimmed.slice(0, 200),
-          });
-        } else {
-          // not HTML; attempt parse
-          try {
-            return JSON.parse(trimmed);
-          } catch (e) {
-            console.warn("fetchJsonWithFallback: text response not JSON, will try other fallbacks", { url: attempt });
-          }
-        }
-      }
-    }
+    // public pinata gateway (help when custom gateway blocks)
+    if (!attempt.includes(PUBLIC_PINATA_GATEWAY)) fallbackCandidates.push(attempt.replace(/^https?:\/\/[^\/]+/, PUBLIC_PINATA_GATEWAY));
 
-    // Try public pinata gateway as intermediate fallback (helps if custom gateway blocks CID)
+    // configured fallback origin (ipfs.io or user-provided)
     try {
-      if (!attempt.includes(PUBLIC_PINATA_GATEWAY)) {
-        const publicUrl = attempt.replace(/^https?:\/\/[^\/]+/, PUBLIC_PINATA_GATEWAY);
-        console.log("fetchJsonWithFallback: trying public pinata gateway", publicUrl);
-        const rpub = await safeFetch(publicUrl);
-        if (rpub && rpub.ok) {
-          const ctp = String(rpub.headers.get("content-type") || "").toLowerCase();
-          if (ctp.includes("application/json") || ctp.includes("text/json")) {
-            try {
-              const jpub = await rpub.json();
-              console.log("fetchJsonWithFallback: success via public pinata gateway", { publicUrl });
-              return jpub;
-            } catch (e) {
-              const bp = await rpub.text().catch(() => "");
-              console.warn("fetchJsonWithFallback: public gateway json parse failed", e, { publicUrl, snippet: bp.slice(0, 200) });
-            }
-          } else {
-            const tp = await rpub.text().catch(() => "");
-            if (tp && !tp.trim().startsWith("<")) {
-              try {
-                return JSON.parse(tp);
-              } catch {
-                /* ignore */
-              }
-            }
-          }
-        } else {
-          console.warn("fetchJsonWithFallback: public gateway returned non-ok", { publicUrl, ok: !!rpub?.ok });
-        }
-      }
-    } catch (e) {
-      console.warn("fetchJsonWithFallback: public gateway attempt failed", e);
+      const attemptUrl = new URL(attempt);
+      const fallbackOrigin = new URL(FALLBACK_GATEWAY).origin;
+      fallbackCandidates.push(`${fallbackOrigin}${attemptUrl.pathname}${attemptUrl.search}`);
+    } catch {
+      // not a full URL, ignore
     }
 
-    // Final: try ipfs.io if we can extract a CID
+    for (const cand of fallbackCandidates) {
+      try {
+        console.log("fetchJsonWithFallback: trying fallback", cand);
+        const r = await safeFetch(cand);
+        const parsed = await tryParseResponse(r);
+        if (parsed) return parsed;
+        if (r && !r.ok) {
+          const body = await r.text().catch(() => "");
+          console.warn("fetchJsonWithFallback: fallback returned non-ok", { cand, status: r.status, contentType: r.headers.get("content-type"), snippet: String(body).slice(0, 500) });
+        }
+      } catch (e) {
+        console.warn("fetchJsonWithFallback: fallback attempt failed", e, { cand });
+      }
+    }
+
+    // final: try fallback gateway by extracting CID (ipfs.io or configured FALLBACK_GATEWAY)
     try {
       let cidMatch = attempt.match(/\/ipfs\/([A-Za-z0-9]+)/)?.[1];
       if (!cidMatch) {
@@ -200,38 +175,20 @@ async function fetchJsonWithFallback(url?: string) {
         cidMatch = m?.[1];
       }
       if (cidMatch) {
-        const ipfsIo = `https://ipfs.io/ipfs/${cidMatch}`;
-        console.log("fetchJsonWithFallback: trying ipfs.io fallback", ipfsIo);
+        const ipfsIo = `${FALLBACK_GATEWAY.replace(/\/$/, "")}/ipfs/${cidMatch}`;
+        console.log("fetchJsonWithFallback: trying ipfs fallback", ipfsIo);
         const r2 = await safeFetch(ipfsIo);
-        if (r2 && r2.ok) {
-          const ct2 = String(r2.headers.get("content-type") || "").toLowerCase();
-          if (ct2.includes("application/json") || ct2.includes("text/json")) {
-            try {
-              const j2 = await r2.json();
-              console.log("fetchJsonWithFallback: success via ipfs.io", { ipfsIo });
-              return j2;
-            } catch (e) {
-              const b2 = await r2.text().catch(() => "");
-              console.error("fetchJsonWithFallback: ipfs.io json parse failed", e, { ipfsIo, snippet: b2.slice(0, 200) });
-            }
-          } else {
-            const t2 = await r2.text().catch(() => "");
-            if (t2 && !t2.trim().startsWith("<")) {
-              try {
-                return JSON.parse(t2);
-              } catch {
-                /* ignore */
-              }
-            }
-          }
-        } else {
-          console.warn("fetchJsonWithFallback: ipfs.io returned non-ok", { ipfsIo, ok: !!r2?.ok });
+        const parsed = await tryParseResponse(r2);
+        if (parsed) return parsed;
+        if (r2 && !r2.ok) {
+          const body2 = await r2.text().catch(() => "");
+          console.warn("fetchJsonWithFallback: ipfs fallback returned non-ok", { ipfsIo, ok: !!r2?.ok, snippet: String(body2).slice(0, 500) });
         }
       } else {
-        console.warn("fetchJsonWithFallback: couldn't extract CID for ipfs.io fallback", { attempt });
+        console.warn("fetchJsonWithFallback: couldn't extract CID for ipfs fallback", { attempt });
       }
     } catch (e) {
-      console.error("fetchJsonWithFallback: ipfs.io attempt failed", e);
+      console.error("fetchJsonWithFallback: ipfs fallback failed", e);
     }
 
     return null;
@@ -248,7 +205,7 @@ function looksLikeMetadata(row: PinRow, nameHint = "metadata") {
     row?.pinning_attempts?.[0]?.metadata?.name ??
     "";
   const s = String(name || "").toLowerCase();
-  return s.includes(nameHint) || s.endsWith("metadata.json") || s.includes("meta");
+  return nameHint === "" ? true : s.includes(nameHint) || s.endsWith("metadata.json") || s.includes("meta");
 }
 
 function extractMediaFromMeta(meta: any) {
@@ -390,16 +347,15 @@ export async function GET(req: Request) {
         }
 
         results.push(item);
-       } catch (e) {
-         console.warn("metadata processing failed", e);
-       }
-     }
+      } catch (e) {
+        console.warn("metadata processing failed", e);
+      }
+    }
 
     console.log("GET: finished processing, results count", results.length);
     return NextResponse.json({ success: true, results }, { status: 200 });
   } catch (err) {
     console.error("list-posts error:", err);
-    return NextResponse.json({ error: "failed", detail: String(err) }, { status: 500
-    });
+    return NextResponse.json({ error: "failed", detail: String(err) }, { status: 500 });
   }
-} 
+}

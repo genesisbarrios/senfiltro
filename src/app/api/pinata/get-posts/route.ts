@@ -324,14 +324,21 @@ export async function GET(req: Request) {
         let meta = await fetchJsonWithFallback(metadataUrl);
 
         if (!meta) {
-          // fallback: maybe metadata name contains a path/CID or custom host
           const name = row?.metadata?.name ?? row?.pin?.metadata?.name ?? "";
           console.log("GET: metadata fetch failed, trying name-based fallback", { name });
-          const m = String(name).match(/([A-Za-z0-9][A-Za-z0-9\-_\.\/:]*)/);
-          if (m) {
-            const alt = buildGatewayUrlFromCid(m[1]);
-            console.log("GET: trying alt metadata url", alt);
+
+          const token = String(name).trim();
+          // try only if token is a CID (crude match for Qm... or long CID)
+          const cidMatch = token.match(/([A-Za-z0-9]{46,}|Qm[1-9A-HJ-NP-Za-km-z]{44,})/)?.[1];
+
+          if (cidMatch) {
+            // force public pinata gateway for metadata CIDs (avoids custom gateway blocking)
+            const alt = `${PUBLIC_PINATA_GATEWAY.replace(/\/$/, "")}/ipfs/${cidMatch}`;
+            console.log("GET: trying alt metadata url (CID via public gateway)", alt);
             meta = await fetchJsonWithFallback(alt);
+          } else {
+            // skip trying plain names to avoid constructing apricot-.../ipfs/<name>
+            console.log("GET: metadata.name is not a CID — skipping name-based fallback to avoid wrong gateway", { name: token });
           }
         }
 

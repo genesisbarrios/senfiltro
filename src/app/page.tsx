@@ -279,10 +279,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Header />
+    <>
+    <Header />
+    <div className="w-full max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6">
       <FeedTabs onTabChange={setActiveTab} />
-
       <div>
          <button
           onClick={() => setCreateOpen(true)}
@@ -309,5 +309,6 @@ export default function HomePage() {
         onCreate={handleCreate}
       />
     </div>
+    </>
   )
 }
